@@ -2,9 +2,8 @@
 //! Also demonstrates the single-player and how sever also could be a player.
 
 // Run 
-
-// CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-server-runner RUSTFLAGS=--cfg=web_sys_unstable_apis cargo run --target wasm32-unknown-unknown
-
+// cargo run --no-default-features --features server
+// CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-server-runner RUSTFLAGS=--cfg=web_sys_unstable_apis cargo run --target wasm32-unknown-unknown --no-default-features --features client
 use std::{
     error::Error,
     net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
@@ -25,11 +24,12 @@ use bevy_replicon::{
         ClientId, ConnectionConfig, ServerEvent,
     },
 };
+
 use bevy::prelude::Resource;
 
+
+#[cfg(feature = "client")]
 use wasm_rs_async_executor::single_threaded as executor;
-
-
 #[cfg(feature = "client")]
 use renet_webtransport::prelude::*;
 #[cfg(feature = "client")]
@@ -40,7 +40,6 @@ use renet_webtransport_server::*;
 #[cfg(feature = "server")]
 use bevy_tokio_tasks;
 
-use wasm_bindgen_futures::*;
 
 const PORT: u16 = 5001;
 
@@ -74,7 +73,12 @@ impl Plugin for SimpleBoxPlugin {
                     Self::server_event_system.run_if(resource_exists::<RenetServer>()), // Runs only on the server.
                     (Self::draw_boxes_system, Self::input_system),
                 ),
-            );    
+            );
+
+        #[cfg(feature = "server")]
+        {
+            app.add_plugins(bevy_tokio_tasks::TokioTasksPlugin::default());
+        }
     }
 }
 
@@ -85,14 +89,15 @@ async fn create_server(server_config: WebTransportConfig) -> WebTransportServer 
 
 #[cfg(feature = "client")]
 async fn create_client() -> WebTransportClient {
-    WebTransportClient::new("https://127.0.0.1:4433", None).await.unwrap()
+    WebTransportClient::new("https://127.0.0.1:5001", None).await.unwrap()
 }
 
-#[wasm_bindgen]
 impl SimpleBoxPlugin {
     fn cli_system(
         mut commands: Commands,
         network_channels: Res<NetworkChannels>,
+        #[cfg(feature = "server")]
+        runtime: ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
     ) -> Result<(), Box<dyn Error>> {
         #[cfg(feature = "server")]
         {
