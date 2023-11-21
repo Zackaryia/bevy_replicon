@@ -19,6 +19,13 @@ license = "MIT OR Apache-2.0"
 include = ["/benches", "/src", "/tests", "/LICENSE*"]
 
 [dependencies]
+# There is a problem where when I compiled I got errors saying
+# error: crate `rodio` required to be available in rlib format, but was not found in this form
+# error: crate `gilrs` required to be available in rlib format, but was not found in this form
+rodio = "0.17.3"
+gilrs = "0.10.3"
+# This fixed it IDK why :P
+
 bevy_renet = { git = "https://github.com/Zackaryia/renet.git", branch = "test" }
 bevy = { version = "0.12", default-features = false, features = ["bevy_scene"] }
 bincode = "1.3"
