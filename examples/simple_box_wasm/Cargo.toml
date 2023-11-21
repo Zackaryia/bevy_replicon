@@ -1,0 +1,59 @@
+[package]
+name = "simple_box_wasm"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+# There is a problem where when I compiled I got errors saying
+# error: crate `rodio` required to be available in rlib format, but was not found in this form
+# error: crate `gilrs` required to be available in rlib format, but was not found in this form
+rodio = "0.17.3"
+gilrs = "0.10.3"
+# This fixed it IDK why :P
+
+# Because bevy-tokio-tasks isnt updated to 0.12 so using fork
+bevy-tokio-tasks = { git = "https://github.com/foxzool/bevy-tokio-tasks.git", branch = "master", optional = true }
+tokio = { version = "1", optional = true }
+
+wasm-bindgen = { version = "0.2.88", optional = true }
+
+renet_webtransport = {git = "https://github.com/Zackaryia/renet.git", branch = "test", features = ["bevy", "worker"], optional = true }
+renet_webtransport_server = {git = "https://github.com/Zackaryia/renet.git", branch = "test", features = ["bevy"], optional = true }
+
+
+bevy_replicon = { path = "../bevy_replicon/" }
+bevy_renet = {git = "https://github.com/Zackaryia/renet.git", branch = "test", features = ["serde"] }
+bevy = { version = "0.12", default-features = false, features = [
+  "bevy_asset",
+  "bevy_core_pipeline",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_text",
+  "bevy_ui",
+  "bevy_gizmos",
+  "x11",
+  "default_font",
+  "bevy_scene"
+] }
+bincode = "1.3"
+serde = "1.0"
+varint-rs = "2.2"
+ordered-multimap = "0.7"
+criterion = { version = "0.5", default-features = false, features = [
+  "cargo_bench_support",
+] }
+spin_sleep = "1.1"
+anyhow = "1.0"
+clap = { version = "4.1", features = ["derive"] }
+ron = "0.8"
+
+
+
+[target.wasm32-unknown-unknown]
+runner = "wasm-server-runner"
+
+[features]
+default = ["client", "server"]
+client = ["dep:wasm-bindgen", "dep:renet_webtransport"]
+server = ["dep:bevy-tokio-tasks", "dep:tokio", "dep:renet_webtransport_server"]
