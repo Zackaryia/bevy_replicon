@@ -1,13 +1,18 @@
 //! A simple demo to showcase how player could send inputs to move the square and server replicates position back.
 //! Also demonstrates the single-player and how sever also could be a player.
 
+// Run 
+
+// CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-server-runner RUSTFLAGS=--cfg=web_sys_unstable_apis cargo run --target wasm32-unknown-unknown
+
 use std::{
     error::Error,
     net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
-    time::SystemTime, path::PathBuf,
+    path::PathBuf,
 };
 
 use bevy::prelude::*;
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 
 use bevy_replicon::{
@@ -146,8 +151,7 @@ impl SimpleBoxPlugin {
                 ..Default::default()
             });
 
-            let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-            let client_id = current_time.as_millis() as u64;
+            let client_id = rand::thread_rng().next_u64();
             let server_addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), PORT);
             let authentication = ClientAuthentication::Unsecure {
                 client_id,

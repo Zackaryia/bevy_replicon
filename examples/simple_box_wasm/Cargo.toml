@@ -24,18 +24,7 @@ renet_webtransport_server = {git = "https://github.com/Zackaryia/renet.git", bra
 
 bevy_replicon = { path = "../bevy_replicon/" }
 bevy_renet = {git = "https://github.com/Zackaryia/renet.git", branch = "test", features = ["serde"] }
-bevy = { version = "0.12", default-features = false, features = [
-  "bevy_asset",
-  "bevy_core_pipeline",
-  "bevy_render",
-  "bevy_sprite",
-  "bevy_text",
-  "bevy_ui",
-  "bevy_gizmos",
-  "x11",
-  "default_font",
-  "bevy_scene"
-] }
+bevy = { version = "0.12" }
 bincode = "1.3"
 serde = "1.0"
 varint-rs = "2.2"
@@ -50,7 +39,7 @@ ron = "0.8"
 
 wasm-bindgen-futures = "0.4.38"
 wasm-rs-async-executor = "0.9.0"
-
+rand = "0.8.5"
 
 
 [target.wasm32-unknown-unknown]
