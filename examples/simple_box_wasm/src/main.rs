@@ -8,7 +8,6 @@ use std::{
 };
 
 use bevy::prelude::*;
-use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use bevy_replicon::{
@@ -23,14 +22,31 @@ use bevy_replicon::{
 };
 use bevy::prelude::Resource;
 
+use wasm_rs_async_executor::single_threaded as executor;
+
+
+#[cfg(feature = "client")]
 use renet_webtransport::prelude::*;
-use renet_webtransport_server::*;
-use bevy_tokio_tasks;
+#[cfg(feature = "client")]
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
+#[cfg(feature = "server")]
+use renet_webtransport_server::*;
+#[cfg(feature = "server")]
+use bevy_tokio_tasks;
+
+use wasm_bindgen_futures::*;
+
+const PORT: u16 = 5001;
+
 fn main() {
+    #[cfg(not(feature = "client"))]
+    #[cfg(not(feature = "server"))]
+    {
+        unreachable!("Must enable either client or server")
+    }
+    
     App::new()
-        .init_resource::<Cli>() // Parse CLI before creating window.
         .add_plugins((DefaultPlugins, ReplicationPlugins, SimpleBoxPlugin))
         .run();
 }
@@ -53,115 +69,115 @@ impl Plugin for SimpleBoxPlugin {
                     Self::server_event_system.run_if(resource_exists::<RenetServer>()), // Runs only on the server.
                     (Self::draw_boxes_system, Self::input_system),
                 ),
-            )
-            .add_plugins(bevy_tokio_tasks::TokioTasksPlugin {
-                make_runtime: Box::new(|| {
-                    let mut runtime = tokio::runtime::Builder::new_multi_thread();
-                    runtime.enable_all();
-                    runtime.build().unwrap()
-                }),
-                ..bevy_tokio_tasks::TokioTasksPlugin::default()
-            });    
+            );    
     }
 }
 
+#[cfg(feature = "server")]
 async fn create_server(server_config: WebTransportConfig) -> WebTransportServer {
     WebTransportServer::new(server_config).unwrap()
 }
 
+#[cfg(feature = "client")]
 async fn create_client() -> WebTransportClient {
     WebTransportClient::new("https://127.0.0.1:4433", None).await.unwrap()
 }
 
+#[wasm_bindgen]
 impl SimpleBoxPlugin {
     fn cli_system(
         mut commands: Commands,
-        cli: Res<Cli>,
         network_channels: Res<NetworkChannels>,
-        runtime: ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
     ) -> Result<(), Box<dyn Error>> {
-        match *cli {
-            Cli::SinglePlayer => {
-                commands.spawn(PlayerBundle::new(SERVER_ID, Vec2::ZERO, Color::GREEN));
-            }
-            Cli::Server { port } => {
-                let server_channels_config = network_channels.get_server_configs();
-                let client_channels_config = network_channels.get_client_configs();
+        #[cfg(feature = "server")]
+        {
+            let server_channels_config = network_channels.get_server_configs();
+            let client_channels_config = network_channels.get_client_configs();
 
-                let server = RenetServer::new(ConnectionConfig {
-                    server_channels_config,
-                    client_channels_config,
-                    ..Default::default()
-                });
+            let server = RenetServer::new(ConnectionConfig {
+                server_channels_config,
+                client_channels_config,
+                ..Default::default()
+            });
 
-                // let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-                let public_addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
-                // let socket = UdpSocket::bind(public_addr)?;
-                
-                // let server_config = ServerConfig {
-                //     current_time,
-                //     max_clients: 10,
-                //     protocol_id: PROTOCOL_ID,
-                //     authentication: ServerAuthentication::Unsecure,
-                //     public_addresses: vec![public_addr],
-                // };
+            // let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+            let public_addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), PORT);
+            // let socket = UdpSocket::bind(public_addr)?;
+            
+            // let server_config = ServerConfig {
+            //     current_time,
+            //     max_clients: 10,
+            //     protocol_id: PROTOCOL_ID,
+            //     authentication: ServerAuthentication::Unsecure,
+            //     public_addresses: vec![public_addr],
+            // };
 
-                let server_config = WebTransportConfig {
-                    listen: public_addr,
-                    cert: PathBuf::from("/home/z/Desktop/bevy_replicon/examples/localhost.der"),
-                    key: PathBuf::from("/home/z/Desktop/bevy_replicon/examples/localhost_key.der"),
-                    max_clients: 10,
-                };
+            let server_config = WebTransportConfig {
+                listen: public_addr,
+                cert: PathBuf::from("/home/z/Desktop/bevy_replicon/examples/localhost.der"),
+                key: PathBuf::from("/home/z/Desktop/bevy_replicon/examples/localhost_key.der"),
+                max_clients: 10,
+            };
 
-                let transport = runtime.runtime().block_on(create_server(server_config));
+            let transport = runtime.runtime().block_on(create_server(server_config));
 
-                commands.insert_resource(transport);
-                commands.insert_resource(server);
+            commands.insert_resource(transport);
+            commands.insert_resource(server);
 
-                commands.spawn(TextBundle::from_section(
-                    "Server",
-                    TextStyle {
-                        font_size: 30.0,
-                        color: Color::WHITE,
-                        ..default()
-                    },
-                ));
-                commands.spawn(PlayerBundle::new(SERVER_ID, Vec2::ZERO, Color::GREEN));
-            }
-            Cli::Client { port, ip } => {
-                let server_channels_config = network_channels.get_server_configs();
-                let client_channels_config = network_channels.get_client_configs();
+            commands.spawn(TextBundle::from_section(
+                "Server",
+                TextStyle {
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                    ..default()
+                },
+            ));
+            commands.spawn(PlayerBundle::new(SERVER_ID, Vec2::ZERO, Color::GREEN));
+        }
 
-                let client = RenetClient::new(ConnectionConfig {
-                    server_channels_config,
-                    client_channels_config,
-                    ..Default::default()
-                });
+        #[cfg(feature = "client")]
+        {
+            let server_channels_config = network_channels.get_server_configs();
+            let client_channels_config = network_channels.get_client_configs();
 
-                let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-                let client_id = current_time.as_millis() as u64;
-                let server_addr = SocketAddr::new(ip, port);
-                let socket = UdpSocket::bind((ip, 0))?;
-                let authentication = ClientAuthentication::Unsecure {
-                    client_id,
-                    protocol_id: PROTOCOL_ID,
-                    server_addr,
-                    user_data: None,
-                };
-                let transport = NetcodeClientTransport::new(current_time, authentication, socket)?;
+            let client = RenetClient::new(ConnectionConfig {
+                server_channels_config,
+                client_channels_config,
+                ..Default::default()
+            });
 
-                commands.insert_resource(client);
-                commands.insert_resource(transport);
+            let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+            let client_id = current_time.as_millis() as u64;
+            let server_addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), PORT);
+            let authentication = ClientAuthentication::Unsecure {
+                client_id,
+                protocol_id: PROTOCOL_ID,
+                server_addr,
+                user_data: None,
+            };
 
-                commands.spawn(TextBundle::from_section(
-                    format!("Client: {client_id:?}"),
-                    TextStyle {
-                        font_size: 30.0,
-                        color: Color::WHITE,
-                        ..default()
-                    },
-                ));
-            }
+            let connection_config = ConnectionConfig::default();
+
+            let transport = executor::block_on(create_client());
+            // Ok(Self {
+            //     renet_client: client,
+            //     web_transport_client: transport,
+            //     duration: 0.0,
+            //     messages: Vec::with_capacity(20),
+            // })
+
+
+            commands.insert_resource(client);
+            commands.insert_resource(transport);
+
+            commands.spawn(TextBundle::from_section(
+                format!("Client: {client_id:?}"),
+                TextStyle {
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                    ..default()
+                },
+            ));
         }
 
         Ok(())
@@ -246,30 +262,7 @@ impl SimpleBoxPlugin {
     }
 }
 
-const PORT: u16 = 5001;
 const PROTOCOL_ID: u64 = 0;
-
-#[derive(Parser, PartialEq, Resource)]
-enum Cli {
-    SinglePlayer,
-    Server {
-        #[arg(short, long, default_value_t = PORT)]
-        port: u16,
-    },
-    Client {
-        #[arg(short, long, default_value_t = Ipv4Addr::LOCALHOST.into())]
-        ip: IpAddr,
-
-        #[arg(short, long, default_value_t = PORT)]
-        port: u16,
-    },
-}
-
-impl Default for Cli {
-    fn default() -> Self {
-        Self::parse()
-    }
-}
 
 #[derive(Bundle)]
 struct PlayerBundle {

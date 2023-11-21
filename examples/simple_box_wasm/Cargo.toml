@@ -48,12 +48,15 @@ anyhow = "1.0"
 clap = { version = "4.1", features = ["derive"] }
 ron = "0.8"
 
+wasm-bindgen-futures = "0.4.38"
+wasm-rs-async-executor = "0.9.0"
+
 
 
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
 
 [features]
-default = ["client", "server"]
+default = ["client"]
 client = ["dep:wasm-bindgen", "dep:renet_webtransport"]
 server = ["dep:bevy-tokio-tasks", "dep:tokio", "dep:renet_webtransport_server"]

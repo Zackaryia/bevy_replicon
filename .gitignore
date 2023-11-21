@@ -9,3 +9,7 @@ html
 
 # For library
 Cargo.lock
+
+# For keys
+*.pem
+*.der
