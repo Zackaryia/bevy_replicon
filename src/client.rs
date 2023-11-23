@@ -7,31 +7,40 @@ use bevy::{
     utils::{Entry, HashMap},
 };
 use bevy_renet::{client_connected, renet::Bytes};
-use bevy_renet::{renet::RenetClient, transport::NetcodeClientPlugin, RenetClientPlugin};
+use bevy_renet::{renet::RenetClient, RenetClientPlugin};
 use bincode::{DefaultOptions, Options};
 use varint_rs::VarintReader;
+
+#[cfg(feature = "transport")]
+use bevy_renet::transport::NetcodeClientPlugin as TransportClientPlugin;
+#[cfg(feature = "web")]
+use bevy_renet::web::WebClientPlugin as TransportClientPlugin;
+
 
 use crate::replicon_core::{
     replication_rules::{Mapper, Replication, ReplicationRules},
     replicon_tick::RepliconTick,
     REPLICATION_CHANNEL_ID,
 };
+
 use diagnostics::ClientStats;
 
+#[cfg(feature = "client")]
 pub struct ClientPlugin;
 
+#[cfg(feature = "client")]
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((RenetClientPlugin, NetcodeClientPlugin))
+        app.add_plugins((RenetClientPlugin, TransportClientPlugin))
             .init_resource::<LastRepliconTick>()
             .init_resource::<ServerEntityMap>()
             .configure_sets(
                 PreUpdate,
-                ClientSet::Receive.after(NetcodeClientPlugin::update_system),
+                ClientSet::Receive.after(TransportClientPlugin::update_system),
             )
             .configure_sets(
                 PostUpdate,
-                ClientSet::Send.before(NetcodeClientPlugin::send_packets),
+                ClientSet::Send.before(TransportClientPlugin::send_packets),
             )
             .add_systems(
                 PreUpdate,
@@ -52,6 +61,7 @@ impl Plugin for ClientPlugin {
     }
 }
 
+#[cfg(feature = "client")]
 impl ClientPlugin {
     pub(super) fn replication_receiving_system(world: &mut World) -> bincode::Result<()> {
         world.resource_scope(|world, mut client: Mut<RenetClient>| {

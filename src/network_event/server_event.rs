@@ -11,12 +11,18 @@ use super::EventChannel;
 use crate::{
     client::{ClientSet, ServerEntityMap},
     network_event::EventMapper,
-    prelude::{ClientPlugin, LastRepliconTick, ServerPlugin},
+    prelude::{LastRepliconTick},
     replicon_core::{
         replication_rules::MapNetworkEntities, replicon_tick::RepliconTick, NetworkChannels,
     },
     server::{has_authority, MinRepliconTick, ServerSet, SERVER_ID},
 };
+
+#[cfg(feature = "client")]
+use crate::prelude::ClientPlugin;
+
+#[cfg(feature = "server")]
+use crate::prelude::ServerPlugin;
 
 /// An extension trait for [`App`] for creating server events.
 pub trait ServerEventAppExt {
@@ -172,16 +178,20 @@ impl ServerEventAppExt for App {
         self.add_event::<T>()
             .init_resource::<Events<ToClients<T>>>()
             .init_resource::<ServerEventQueue<T>>()
-            .insert_resource(EventChannel::<T>::new(channel_id))
-            .add_systems(
+            .insert_resource(EventChannel::<T>::new(channel_id));
+        
+        #[cfg(feature = "client")]
+        self.add_systems(
                 PreUpdate,
                 (queue_system::<T>, receiving_system)
                     .chain()
                     .after(ClientPlugin::replication_receiving_system)
                     .in_set(ClientSet::Receive)
                     .run_if(client_connected()),
-            )
-            .add_systems(
+            );
+
+        #[cfg(feature = "server")]
+        self.add_systems(
                 PostUpdate,
                 (
                     (

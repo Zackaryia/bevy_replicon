@@ -17,9 +17,14 @@ use bevy::{
 };
 use bevy_renet::{
     renet::{ClientId, RenetClient, RenetServer, ServerEvent},
-    transport::NetcodeServerPlugin,
     RenetReceive, RenetSend, RenetServerPlugin,
 };
+
+#[cfg(feature = "transport")]
+use bevy_renet::transport::NetcodeServerPlugin as TransportServerPlugin;
+#[cfg(feature = "web")]
+#[cfg(feature = "server")]
+use bevy_renet::web::WebServerPlugin as TransportServerPlugin;
 
 use crate::replicon_core::{
     replication_rules::ReplicationRules, replicon_tick::RepliconTick, REPLICATION_CHANNEL_ID,
@@ -30,10 +35,12 @@ use replication_buffer::ReplicationBuffer;
 
 pub const SERVER_ID: ClientId = ClientId::from_raw(0);
 
+#[cfg(feature = "server")]
 pub struct ServerPlugin {
     tick_policy: TickPolicy,
 }
 
+#[cfg(feature = "server")]
 impl Default for ServerPlugin {
     fn default() -> Self {
         Self {
@@ -42,11 +49,12 @@ impl Default for ServerPlugin {
     }
 }
 
+#[cfg(feature = "server")]
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             RenetServerPlugin,
-            NetcodeServerPlugin,
+            TransportServerPlugin,
             RemovalTrackerPlugin,
             DespawnTrackerPlugin,
         ))
@@ -99,6 +107,7 @@ impl Plugin for ServerPlugin {
     }
 }
 
+#[cfg(feature = "server")]
 impl ServerPlugin {
     pub fn new(tick_policy: TickPolicy) -> Self {
         Self { tick_policy }

@@ -394,7 +394,7 @@ pub mod prelude {
     pub use super::{
         client::{
             diagnostics::{ClientDiagnosticsPlugin, ClientStats},
-            ClientMapper, ClientPlugin, ClientSet, LastRepliconTick, ServerEntityMap,
+            ClientMapper, ClientSet, LastRepliconTick, ServerEntityMap,
         },
         network_event::{
             client_event::{ClientEventAppExt, FromClient},
@@ -412,12 +412,18 @@ pub mod prelude {
             NetworkChannels, RepliconCorePlugin, REPLICATION_CHANNEL_ID,
         },
         server::{
-            has_authority, AckedTicks, ClientEntityMap, ClientMapping, ServerPlugin, ServerSet,
+            has_authority, AckedTicks, ClientEntityMap, ClientMapping, ServerSet,
             TickPolicy, SERVER_ID,
         },
         ReplicationPlugins,
     };
+
+    #[cfg(feature = "server")]
+    pub use super::server::ServerPlugin;
+    #[cfg(feature = "client")]
+    pub use super::client::ClientPlugin;
 }
+
 
 use bevy::{app::PluginGroupBuilder, prelude::*};
 pub use bevy_renet::*;
@@ -429,10 +435,15 @@ pub struct ReplicationPlugins;
 
 impl PluginGroup for ReplicationPlugins {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
+        let mut pgb = PluginGroupBuilder::start::<Self>()
             .add(RepliconCorePlugin)
-            .add(ParentSyncPlugin)
-            .add(ClientPlugin)
-            .add(ServerPlugin::default())
+            .add(ParentSyncPlugin);
+
+        #[cfg(feature = "client")]
+        let pgb = pgb.add(ClientPlugin);
+        #[cfg(feature = "server")]
+        let pgb = pgb.add(ServerPlugin::default());
+
+        pgb
     }
 }
